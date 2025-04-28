@@ -18,6 +18,7 @@ export const DB_id="67d06d9b00158ab4cf6f";
 export const task_collection="67d06f88000795a7622d";
 export const usersCollection="67e1867b002bc4603781";
 export const groupTaskAddPermission_collection="67e439130021eddf6b60";
+export const groupTask_collection="68090ec20019ea873ef0";
 //COLLECTION AND DB
 export const client = new Client()
   .setProject("67a052f7002ec71e2bb7")

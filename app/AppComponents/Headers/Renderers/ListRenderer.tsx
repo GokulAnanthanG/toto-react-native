@@ -5,7 +5,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { database, DB_id, task_collection } from "@/config/appWrite";
 import { Query } from "react-native-appwrite";
@@ -16,15 +16,18 @@ import { useGlobalContext } from "@/hooks/global-provider";
 
 const ListRenderer = () => {
   const { isLoggedIn, refetch, loading, user } = useGlobalContext();
-  const [isloading, setIsloading] = useState<boolean>(false);
-  const [lists, setLists] = useState<Task[]>([]);
+    const [isLoading, setIsloading] = useState<boolean>(false);
+  const isLoadingRef = useRef<boolean>(false); 
+    const [lists, setLists] = useState<Task[]>([]);
   const [page, setPage] = useState<number>(0);
-  const [canLoad, setCanLoadMore] = useState<boolean>(false);
   const limit = 10;
 
   const fetch = async () => {
-    if (isloading) return; // Prevent duplicate requests
+    if (isLoadingRef.current) return;  
+    isLoadingRef.current = true;
     setIsloading(true);
+    console.log("API CALL");
+    
     try {
       const result = await database.listDocuments(DB_id, task_collection, [
         Query.limit(limit),
@@ -37,6 +40,7 @@ const ListRenderer = () => {
       alert("failed to get list");
       console.log(err);
     } finally {
+      isLoadingRef.current=false;
       setIsloading(false);
     }
   };
@@ -52,7 +56,7 @@ const ListRenderer = () => {
         }}
         key={item.$collectionId}
       >
-        <View className="w-full py-[12px] px-[25px] bg-[#FFFFFF] rounded-lg mt-[10px] flex-row justify-between items-center">
+        <View className="w-full py-[12px] px-[25px] bg-[#FFFFFF] rounded-lg mt-[15px] flex-row justify-between items-center">
           <View>
             <Text className="font-PoppinsMedium text-[14px] text-[#000000]">
               {item.title}
@@ -70,27 +74,23 @@ const ListRenderer = () => {
   }
   return (
     <View>
-      <Text className="text-[#FFFFFF] font-PoppinsRegular text-[16px] mt-[46px]">
+      <Text className="text-[#FFFFFF] font-PoppinsRegular text-[16px] mt-[26px]">
         Tasks List
       </Text>
-      <View className="pt-[18px]">
+      <View>
         <FlatList
-         contentContainerStyle={{ paddingBottom: 230 }}
+          contentContainerStyle={{ paddingBottom: 230 }}
           scrollEnabled
           showsVerticalScrollIndicator={false}
-           data={lists}
+          data={lists}
           keyExtractor={(item) => String(item.$id)}
           renderItem={({ item }) => itemJsx(item)}
           onEndReached={() => {
-            if (canLoad) {
-              setCanLoadMore(false);
-              fetch();
-            }
+            fetch();
           }}
           onEndReachedThreshold={0.7}
-          onMomentumScrollBegin={() => setCanLoadMore(true)} //only allow to fecth during scroll
-          ListFooterComponent={<>{isloading && <ActivityIndicator />}</>}
-        />
+         />
+         {isLoading && <ActivityIndicator />}
       </View>
     </View>
   );

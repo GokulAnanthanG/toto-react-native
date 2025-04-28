@@ -26,7 +26,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   //ADDING USER TO DB IF HE LOGGED IN FOR THE FIRST TIME
   async function storeUserOnLogin() {
     try {
-      if (!user) return; // Ensure user exists
+      if (!user) return;  
   
       const userId = user.$id;
       const email = user.email;
@@ -37,7 +37,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
         Query.equal("userId", userId),
       ]);
   
-      if (existingUsers.documents.length === 0) {  // ✅ Ensure correct check
+      if (existingUsers.documents.length === 0) {  
         await database.createDocument(DB_id, usersCollection, ID.unique(), {
           userId,
           email,

@@ -13,6 +13,7 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,9 +30,10 @@ const Permission = () => {
   const [canLoad, setCanLoadMore] = useState<boolean>(false);
   const limit = 10;
 
-  const fetch = async () => {
-    if (isloading) return; // Prevent duplicate requests
+  const fetch = async (clear: boolean = false) => {
+    if (isloading) return;
     setIsloading(true);
+  
     try {
       const result = await database.listDocuments(
         DB_id,
@@ -42,22 +44,24 @@ const Permission = () => {
             Query.equal("userId", user?.$id ?? ""),
           ]),
           Query.limit(limit),
-          Query.offset(page * limit),
+          Query.offset(clear ? 0 : page * limit),
         ]
       );
-
+  
       const data = await Promise.all(
         result.documents.map(async (e) => {
-          ////finfing what is the role of login user in this request
-          const yourRoleHere =
-            e.userId == user?.$id ? "user" : "requester";
-            console.log("your role",yourRoleHere);
-            
+          const yourRoleHere = e.userId == user?.$id ? "user" : "requester";
           const userDetails = await database.listDocuments(
             DB_id,
             usersCollection,
-            [Query.equal("userId",yourRoleHere=="user"?e.requesterId:e.userId)]
+            [
+              Query.equal(
+                "userId",
+                yourRoleHere == "user" ? e.requesterId : e.userId
+              ),
+            ]
           );
+  
           return {
             ...e,
             userDetails: userDetails.documents[0],
@@ -65,10 +69,14 @@ const Permission = () => {
           };
         })
       );
-      console.log("precessed data", data);
-
-      setPermissons((prev) => [...prev, ...data]);
-      setPage((prev) => prev + 1);
+  
+      if (clear) {
+        setPermissons(data);
+        setPage(1); // start from 1 since offset 0 is already fetched
+      } else {
+        setPermissons((prev) => [...prev, ...data]);
+        setPage((prev) => prev + 1);
+      }
     } catch (err) {
       alert("failed to get list");
       console.log(err);
@@ -76,9 +84,40 @@ const Permission = () => {
       setIsloading(false);
     }
   };
+  
   useEffect(() => {
     fetch();
   }, []);
+  const showConfirmationAlert = (msg:string,recordId: string,status:string) => {
+    Alert.alert(
+      "Confirm to submit",
+      msg,
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: () => updateStatus(recordId,status),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+  const updateStatus = async (id: string,status:string) => {
+    try {
+      const updatedDocument = await database.updateDocument(
+        DB_id,
+        groupTaskAddPermission_collection,
+        id,
+        {
+          status
+        }
+      );
+      console.log("updated=?",updatedDocument);
+     fetch(true);
+    } catch (err) {
+      alert("error fetching,inserting or update document");
+    }
+  };
 
   function itemJsx(item: permission | any) {
     return (
@@ -97,22 +136,30 @@ const Permission = () => {
                   item.userDetails.name +
                   " to add in your group task"}
             </Text>
-            {item.userId == user?.$id?
-            <View className="flex flex-row gap-[10px]">
-              <TouchableOpacity className="border border-gray-300 rounded-md p-1">
-                <Text className="text-green-800">Accept</Text>
+            {item.userId == user?.$id && item.status == "pending" ? (
+              <View className="flex flex-row gap-[10px]">
+                <TouchableOpacity className="border border-gray-300 rounded-md p-1" onPress={()=>showConfirmationAlert("Are you sure want to approve ?",item.$id,"approved")}>
+                  <Text className="text-green-800">Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="border border-gray-300 rounded-md p-1" onPress={()=>showConfirmationAlert("Are you sure want to reject",item.$id,"rejected")}>
+                  <Text className="text-red-700">Reject</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity>
+                <Text
+                  className={`${
+                    item.status == "pending"
+                      ? "text-orange-500"
+                      : item.status == "approved"
+                      ? "text-green-800"
+                      : "text-red-600"
+                  }`}
+                >
+                  {item.status}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity className="border border-gray-300 rounded-md p-1">
-                <Text className="text-red-700">Reject</Text>
-              </TouchableOpacity>
-            </View>
-            :
-            <TouchableOpacity>
-            <Text className=   {`${item.status=="pending"?"text-orange-500":item.status=="success"?"text-green-800":"text-red-600"}`}>
-                {item.status}
-            </Text>
-          </TouchableOpacity>
-            }
+            )}
           </View>
         </View>
       </View>
