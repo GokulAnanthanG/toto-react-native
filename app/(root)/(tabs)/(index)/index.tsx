@@ -1,6 +1,6 @@
 import { View, Text, FlatList, Image, ScrollView, TouchableOpacity } from "react-native";
 import React from "react";
-import ImgRenderer from "@/app/AppComponents/Headers/Renderers/ImgRenderer";
+import ImgRenderer from "@/app/AppComponents/Renderers/ImgRenderer";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import HomeHeader from "@/app/AppComponents/Headers/HomeHeader";
 import { useGlobalContext } from "@/hooks/global-provider";

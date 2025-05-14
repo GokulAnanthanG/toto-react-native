@@ -4,49 +4,82 @@ import {
   FlatList,
   ActivityIndicator,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { database, DB_id, task_collection } from "@/config/appWrite";
 import { Query } from "react-native-appwrite";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Task } from "@/interface/listInterface";
 import { formatDate, formatTime } from "@/Common/DateTimeFormatter";
 import { useGlobalContext } from "@/hooks/global-provider";
+const pin = require("@/assets/images/Pin.png");
 
 const ListRenderer = () => {
   const { isLoggedIn, refetch, loading, user } = useGlobalContext();
-    const [isLoading, setIsloading] = useState<boolean>(false);
-  const isLoadingRef = useRef<boolean>(false); 
-    const [lists, setLists] = useState<Task[]>([]);
+  const [isLoading, setIsloading] = useState<boolean>(false);
+  const isLoadingRef = useRef<boolean>(false);
+  const [lists, setLists] = useState<Task[]>([]);
   const [page, setPage] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const limit = 10;
 
   const fetch = async () => {
-    if (isLoadingRef.current) return;  
+    // Get pinned items first if lists is empty
+    if (lists.length === 0) {
+      try {
+        const pinnedResult = await database.listDocuments(DB_id, task_collection, [
+          Query.equal("pinned", true),
+          Query.limit(100) // Higher limit for pinned items
+        ]);
+        const pinnedData: any = pinnedResult?.documents;
+        setLists(pinnedData);
+      } catch (err) {
+        console.log("Error fetching pinned items:", err);
+      }
+    }
+    
+    if (isLoadingRef.current || !hasMore) return;
     isLoadingRef.current = true;
     setIsloading(true);
     console.log("API CALL");
-    
+
     try {
       const result = await database.listDocuments(DB_id, task_collection, [
         Query.limit(limit),
         Query.offset(page * limit),
       ]);
       const data: any = result?.documents;
-      setLists((prev) => [...prev, ...data]);
+      if (data.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      setLists((prev) => [...prev, ...data.filter((e:any)=>e.pinned!=true)]);
       setPage((prev) => prev + 1);
     } catch (err) {
       alert("failed to get list");
       console.log(err);
     } finally {
-      isLoadingRef.current=false;
+      isLoadingRef.current = false;
       setIsloading(false);
     }
   };
-  useEffect(() => {
-    fetch();
-  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setLists([]);
+      setPage(0);
+      setHasMore(true);
+      fetch();
+
+      return () => {
+        // Cleanup function
+        isLoadingRef.current = false;
+      };
+    }, [])
+  );
 
   function itemJsx(item: Task) {
     return (
@@ -54,7 +87,6 @@ const ListRenderer = () => {
         onPress={() => {
           router.push(`/List/${item.$id}`);
         }}
-        key={item.$collectionId}
       >
         <View className="w-full py-[12px] px-[25px] bg-[#FFFFFF] rounded-lg mt-[15px] flex-row justify-between items-center">
           <View>
@@ -65,13 +97,15 @@ const ListRenderer = () => {
               {formatDate(item.date)} | {formatTime(item.time)}
             </Text>
           </View>
-          <View>
+          <View className="flex-row items-center">
+            {item.pinned && <Image className="w-[20px]" resizeMode="contain" source={pin} />}
             <Ionicons name="chevron-forward" size={16} color="#0EA5E9" />
           </View>
         </View>
       </TouchableOpacity>
     );
   }
+
   return (
     <View>
       <Text className="text-[#FFFFFF] font-PoppinsRegular text-[16px] mt-[26px]">
@@ -86,11 +120,13 @@ const ListRenderer = () => {
           keyExtractor={(item) => String(item.$id)}
           renderItem={({ item }) => itemJsx(item)}
           onEndReached={() => {
-            fetch();
+            if (!isLoading && hasMore) {
+              fetch();
+            }
           }}
           onEndReachedThreshold={0.7}
-         />
-         {isLoading && <ActivityIndicator />}
+        />
+        {isLoading && <ActivityIndicator />}
       </View>
     </View>
   );

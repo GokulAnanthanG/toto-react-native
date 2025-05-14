@@ -83,7 +83,7 @@ const GroupTaskList = () => {
     return (
       <TouchableOpacity
         onPress={() => {
-          router.push(`/List/${item.$id}`);
+          router.push(`/List/Group/${item.$id}`);
         }}
         key={item.$collectionId}
       >

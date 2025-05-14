@@ -28,13 +28,13 @@ import {
   usersCollection,
 } from "@/config/appWrite";
 import { ID, Query } from "react-native-appwrite";
-import ListRenderer from "@/app/AppComponents/Headers/Renderers/ListRenderer";
+import ListRenderer from "@/app/AppComponents/Renderers/ListRenderer";
 import SectionedMultiSelect from "react-native-sectioned-multi-select";
 import { useGlobalContext } from "@/hooks/global-provider";
 import { UserData } from "@/interface/UserInterface";
 import { TaskType } from "@/enum/TaskTypeEnum";
 import { router } from "expo-router";
-import GroupTaskList from "@/app/AppComponents/Headers/Renderers/GroupTaskList";
+import GroupTaskList from "@/app/AppComponents/Renderers/GroupTaskList";
 
 const List = () => {
   const { isLoggedIn, refetch, loading, user } = useGlobalContext();

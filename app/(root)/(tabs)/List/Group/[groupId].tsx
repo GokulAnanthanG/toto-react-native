@@ -5,13 +5,23 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { Databases } from "react-native-appwrite";
-import { database, DB_id, task_collection } from "@/config/appWrite";
+import { Databases, Query } from "react-native-appwrite";
+import {
+  database,
+  DB_id,
+  groupTask_collection,
+  usersCollection,
+} from "@/config/appWrite";
 import { Task } from "@/interface/listInterface";
 import { formatDate, formatTime } from "@/Common/DateTimeFormatter";
+import { useGlobalContext } from "@/hooks/global-provider";
+import { GroupTaskViewT } from "@/interface/GroupTaskViewT";
+import { DBUserData } from "@/interface/UserInterface";
+import { Ionicons } from "@expo/vector-icons";
 const back = require("@/assets/images/angleLeft.png");
 const pencil = require("@/assets/images/pencil.png");
 const calendar = require("@/assets/images/calendarIcon.png");
@@ -20,19 +30,50 @@ const greenTick = require("@/assets/images/greenTick.png");
 const trash = require("@/assets/images/trash.png");
 const pin = require("@/assets/images/Pin.png");
 
-const Details = () => {
-  const [listData, setData] = useState<Task>();
-  const { id } = useLocalSearchParams();
+const GroupTaskScreen = () => {
+  const { isLoggedIn, refetch, loading, user } = useGlobalContext();
+  console.log("user data", user?.$id);
+
+  const [listData, setData] = useState<GroupTaskViewT>();
+  const { groupId } = useLocalSearchParams();
   const [isLoading, setLoading] = useState<boolean>(false);
+  const [comment, setComment] = useState<string>("");
   const fetch = async () => {
     try {
       setLoading(true);
       const response: any = await database.getDocument(
         DB_id,
-        task_collection,
-        String(id)
+        groupTask_collection,
+        String(groupId)
       );
-      setData(response);
+
+      const members: any = await Promise.all(
+        response.members.map(async (m: any) => {
+          console.log("MEMBER ID", m);
+          let result = await database.listDocuments(DB_id, usersCollection, [
+            Query.equal("userId", m),
+          ]);
+          return result.documents;
+        })
+      );
+      console.log("members", members[0]);
+
+      const ownerDetail: any = await database.listDocuments(
+        DB_id,
+        usersCollection,
+        [Query.equal("userId", response.owner)]
+      );
+      console.log("TTT", {
+        ...response,
+        members: members[0],
+        ownerDetail: ownerDetail?.documents[0],
+      });
+
+      setData({
+        ...response,
+        members: members[0],
+        ownerDetail: ownerDetail?.documents[0],
+      });
     } catch (error) {
       console.error("Error fetching document:", error);
     } finally {
@@ -48,8 +89,8 @@ const Details = () => {
       setLoading(true);
       const response = await database.updateDocument(
         DB_id,
-        task_collection,
-        String(id),
+        groupTask_collection,
+        String(groupId),
         {
           isCompleted: !listData?.isCompleted,
         }
@@ -79,7 +120,11 @@ const Details = () => {
   const deleteTask = async () => {
     try {
       setLoading(true);
-      await database.deleteDocument(DB_id, task_collection, String(id));
+      await database.deleteDocument(
+        DB_id,
+        groupTask_collection,
+        String(groupId)
+      );
       router.back();
     } catch (error) {
       console.error("Error deleting task:", error);
@@ -109,8 +154,8 @@ const Details = () => {
       setLoading(true);
       const response = await database.updateDocument(
         DB_id,
-        task_collection,
-        String(id),
+        groupTask_collection,
+        String(groupId),
         {
           pinned: !listData?.pinned,
         }
@@ -164,6 +209,21 @@ const Details = () => {
               </Text>
             </View>
           </View>
+          <View className="flex flex-row items-center gap-1">
+            <Text className="text-[14px] font-PoppinsRegular text-[#FFFFFF] mt-2">
+              Owner |
+            </Text>
+            <View className="flex flex-row justify-center items-center gap-1">
+              <Image
+                className="w-[15px] h-[15px] rounded-full"
+                resizeMode="contain"
+                source={{ uri: listData?.ownerDetail?.avatar }}
+              />
+              <Text className="text-white font-PoppinsRegular text-[12px]">
+                {listData?.ownerDetail?.name}
+              </Text>
+            </View>
+          </View>
           {/* HR */}
           <View className="border-b-[0.5px] border-b-[#FFFFFF] mt-[26px]"></View>
           <Text className="text-justify text-[14px] text-[#FFFFFF] font-PoppinsMedium mt-[24.5]">
@@ -183,7 +243,10 @@ const Details = () => {
                 shadowOpacity: 0.8,
                 shadowRadius: 8,
                 elevation: 7,
-                opacity: listData?.isCompleted ? 0.5 : 1,
+                opacity:
+                  user?.$id != listData?.owner || listData?.isCompleted
+                    ? 0.5
+                    : 1,
               }}
             >
               <Image resizeMode="contain" source={greenTick} />
@@ -199,6 +262,7 @@ const Details = () => {
                 shadowOpacity: 0.8,
                 shadowRadius: 8,
                 elevation: 7,
+                opacity: user?.$id != listData?.owner ? 0.5 : 1,
               }}
               onPress={() => showDeleteConfirmation()}
             >
@@ -224,10 +288,50 @@ const Details = () => {
               </Text>
             </TouchableOpacity>
           </View>
+          {/* MEMBERS */}
+          <Text className="text-white font-PoppinsMedium mt-5">Members</Text>
+          <View className="flex flex-row gap-4 mt-2">
+            {listData?.members.map((m: DBUserData) => {
+              return (
+                <View
+                  key={m.$id}
+                  className="flex justify-center items-center gap-1"
+                >
+                  <Image
+                    className="w-[25px] h-[25px] rounded-full"
+                    resizeMode="contain"
+                    source={{ uri: m.avatar }}
+                  />
+                  <Text className="text-white font-PoppinsRegular text-[12px]">
+                    {m.name}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+             {/* // COMMENT SECTION */}
+       <View className="flex-row items-center justify-between gap-[8px] mt-4">
+        <View className="bg-[#6d90bd] w-[220px] h-[42px] rounded-[10px] flex-row items-center justify-between p-4">
+          <TextInput
+            style={{ height: 40, width: "90%", color: "#FFFFFF" }}
+            onChangeText={setComment}
+            value={comment}
+            placeholder={`add your comments`}
+            placeholderTextColor={"#FFFFFF"}
+          />
+        </View>
+
+        <View className="bg-[#6d90bd] flex-1 h-[42px] flex-row gap-2 justify-center items-center rounded-[10px]">
+          <Ionicons name="add-circle" size={17} color="#FFFFFF" />
+          <Text className="text-[#FFFFFF] text-[14px] font-PoppinsMedium">
+            Add
+          </Text>
+        </View>
+      </View>
         </>
       )}
     </View>
   );
 };
 
-export default Details;
+export default GroupTaskScreen;
