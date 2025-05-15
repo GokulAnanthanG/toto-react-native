@@ -139,7 +139,7 @@ const Details = () => {
         </View>
       ) : (
         <>
-          <View className="flex flex-row items-center gap-[14px] mt-[76px]">
+          <View className="flex flex-row items-center gap-[14px] mt-[36px]">
             <Text className="text-[18px] text-[#FFFFFF] font-PoppinsMedium">
               {listData?.title}
             </Text>
