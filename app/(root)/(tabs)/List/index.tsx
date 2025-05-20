@@ -35,7 +35,7 @@ import { UserData } from "@/interface/UserInterface";
 import { TaskType } from "@/enum/TaskTypeEnum";
 import { router } from "expo-router";
 import GroupTaskList from "@/app/AppComponents/Renderers/GroupTaskList";
-
+import { Picker } from "@react-native-picker/picker";
 const List = () => {
   const { isLoggedIn, refetch, loading, user } = useGlobalContext();
   const [searchTxt, setSearchTxt] = React.useState("");
@@ -48,6 +48,7 @@ const List = () => {
   const [show, setShow] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [friends, setFriends] = useState<UserData[] | any>([]);
+  const [selectedFilterOpt, setSelectedFilterOpt] = useState("");
   const getFriends = async () => {
     try {
       console.log("calling");
@@ -197,11 +198,23 @@ const List = () => {
           <Ionicons name="search" size={17} color="#FFFFFF" />
         </View>
 
-        <View className="bg-[#102D53] flex-1 h-[42px] flex-row gap-3 justify-center items-center rounded-[10px]">
-          <Ionicons name="filter" size={17} color="#FFFFFF" />
-          <Text className="text-[#FFFFFF] text-[10px] font-PoppinsMedium">
-            Short by
+        <View className="bg-[#102D53] flex-1 h-[42px] rounded-[10px] flex-row items-center justify-center px-2">
+          <Text className="text-[#FFFFFF] text-[10px] font-PoppinsMedium  ml-1">
+            Sort by
           </Text>
+          <View className="flex-1">
+            <Picker
+              selectedValue={selectedFilterOpt}
+              onValueChange={(itemValue, itemIndex) =>
+                setSelectedFilterOpt(itemValue)
+              }
+              style={{ color: "#FFFFFF", marginTop: -3 }}
+              dropdownIconColor="#FFFFFF"
+            >
+              <Picker.Item label="Completed" value="completed" />
+              <Picker.Item label="In-Completed" value="completed" />
+            </Picker>
+          </View>
         </View>
       </View>
       {/* OPTION BOX */}
@@ -244,7 +257,7 @@ const List = () => {
         </View>
       </View>
       {/* RENDERING LISTS */}
-      {selectedType == TaskType.task ? <ListRenderer /> : <GroupTaskList />}
+      {selectedType == TaskType.task ? <ListRenderer filterBy={selectedFilterOpt} /> : <GroupTaskList filterBy={selectedFilterOpt}  />}
       <FloatingAction
         actions={actions}
         onPressItem={(name) => {

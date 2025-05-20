@@ -16,7 +16,7 @@ import { formatDate, formatTime } from "@/Common/DateTimeFormatter";
 import { useGlobalContext } from "@/hooks/global-provider";
 const pin = require("@/assets/images/Pin.png");
 
-const ListRenderer = () => {
+const ListRenderer = (props:{filterBy:any}) => {
   const { isLoggedIn, refetch, loading, user } = useGlobalContext();
   const [isLoading, setIsloading] = useState<boolean>(false);
   const isLoadingRef = useRef<boolean>(false);
