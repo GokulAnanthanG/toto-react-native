@@ -16,7 +16,7 @@ import { formatDate, formatTime } from "@/Common/DateTimeFormatter";
 import { useGlobalContext } from "@/hooks/global-provider";
 const pin = require("@/assets/images/Pin.png");
 
-const ListRenderer = (props:{filterBy:any}) => {
+const ListRenderer = (props: { filterBy: any }) => {
   const { isLoggedIn, refetch, loading, user } = useGlobalContext();
   const [isLoading, setIsloading] = useState<boolean>(false);
   const isLoadingRef = useRef<boolean>(false);
@@ -29,34 +29,52 @@ const ListRenderer = (props:{filterBy:any}) => {
     // Get pinned items first if lists is empty
     if (lists.length === 0) {
       try {
-        const pinnedResult = await database.listDocuments(DB_id, task_collection, [
-          Query.equal("pinned", true),
-          Query.limit(100) // Higher limit for pinned items
-        ]);
+        const pinnedResult = await database.listDocuments(
+          DB_id,
+          task_collection,
+          [
+            Query.equal("pinned", true),
+            Query.limit(100), // Higher limit for pinned items
+            Query.orderDesc("date"), // Sort pinned items by date descending
+          ]
+        );
         const pinnedData: any = pinnedResult?.documents;
         setLists(pinnedData);
       } catch (err) {
         console.log("Error fetching pinned items:", err);
       }
     }
-    
+
     if (isLoadingRef.current || !hasMore) return;
     isLoadingRef.current = true;
     setIsloading(true);
     console.log("API CALL");
+    let queries: any = [
+      Query.limit(limit),
+      Query.offset(page * limit),
+      Query.orderDesc("date"),
+    ];
+    if (props.filterBy != "all") {
+      queries.push(Query.equal("isCompleted", props.filterBy === "true"));
+    }
+    console.log(queries);
 
     try {
-      const result = await database.listDocuments(DB_id, task_collection, [
-        Query.limit(limit),
-        Query.offset(page * limit),
-      ]);
+      const result = await database.listDocuments(
+        DB_id,
+        task_collection,
+        queries
+      );
       const data: any = result?.documents;
       if (data.length === 0) {
         setHasMore(false);
         return;
       }
 
-      setLists((prev) => [...prev, ...data.filter((e:any)=>e.pinned!=true)]);
+      setLists((prev) => [
+        ...prev,
+        ...data.filter((e: any) => e.pinned != true),
+      ]);
       setPage((prev) => prev + 1);
     } catch (err) {
       alert("failed to get list");
@@ -78,7 +96,7 @@ const ListRenderer = (props:{filterBy:any}) => {
         // Cleanup function
         isLoadingRef.current = false;
       };
-    }, [])
+    }, [props.filterBy])
   );
 
   function itemJsx(item: Task) {
@@ -98,7 +116,9 @@ const ListRenderer = (props:{filterBy:any}) => {
             </Text>
           </View>
           <View className="flex-row items-center">
-            {item.pinned && <Image className="w-[20px]" resizeMode="contain" source={pin} />}
+            {item.pinned && (
+              <Image className="w-[20px]" resizeMode="contain" source={pin} />
+            )}
             <Ionicons name="chevron-forward" size={16} color="#0EA5E9" />
           </View>
         </View>

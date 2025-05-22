@@ -48,7 +48,7 @@ const List = () => {
   const [show, setShow] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [friends, setFriends] = useState<UserData[] | any>([]);
-  const [selectedFilterOpt, setSelectedFilterOpt] = useState("");
+  const [selectedFilterOpt, setSelectedFilterOpt] = useState("all");
   const getFriends = async () => {
     try {
       console.log("calling");
@@ -211,8 +211,9 @@ const List = () => {
               style={{ color: "#FFFFFF", marginTop: -3 }}
               dropdownIconColor="#FFFFFF"
             >
-              <Picker.Item label="Completed" value="completed" />
-              <Picker.Item label="In-Completed" value="completed" />
+              <Picker.Item label="All" value="all" />
+              <Picker.Item label="Completed" value="true" />
+              <Picker.Item label="In-Completed" value="false" />
             </Picker>
           </View>
         </View>
@@ -257,7 +258,11 @@ const List = () => {
         </View>
       </View>
       {/* RENDERING LISTS */}
-      {selectedType == TaskType.task ? <ListRenderer filterBy={selectedFilterOpt} /> : <GroupTaskList filterBy={selectedFilterOpt}  />}
+      {selectedType == TaskType.task ? (
+        <ListRenderer filterBy={selectedFilterOpt} />
+      ) : (
+        <GroupTaskList filterBy={selectedFilterOpt} />
+      )}
       <FloatingAction
         actions={actions}
         onPressItem={(name) => {
