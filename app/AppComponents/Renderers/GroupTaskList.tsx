@@ -41,7 +41,8 @@ const GroupTaskList = (props:{filterBy:any}) => {
           groupTask_collection,
           [
             Query.equal("pinned", true),
-            Query.limit(100), // Higher limit for pinned items
+            Query.limit(100),
+            Query.orderDesc("date"),  
           ]
         );
         const pinnedData: any = pinnedResult?.documents;
@@ -82,10 +83,15 @@ const GroupTaskList = (props:{filterBy:any}) => {
     isLoadingRef.current = true;
     setIsloading(true);
     try {
-      const result = await database.listDocuments(DB_id, groupTask_collection, [
+      let queries: any = [
         Query.limit(limit),
         Query.offset(page * limit),
-      ]);
+        Query.orderDesc("date"),
+      ]
+      if (props.filterBy != "all") {
+        queries.push(Query.equal("isCompleted", props.filterBy === "true"));
+      }
+      const result = await database.listDocuments(DB_id, groupTask_collection, queries);
       const data: any = await Promise.all(
         result?.documents?.map(async (task: GroupTaskT) => {
           return {
