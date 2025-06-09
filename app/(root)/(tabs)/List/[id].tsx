@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { Databases } from "react-native-appwrite";
 import { database, DB_id, task_collection } from "@/config/appWrite";
 import { Task } from "@/interface/listInterface";
 import { formatDate, formatTime } from "@/Common/DateTimeFormatter";

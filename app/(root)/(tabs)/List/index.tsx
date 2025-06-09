@@ -70,7 +70,7 @@ const List = () => {
         let userDetails = await database.listDocuments(
           DB_id,
           usersCollection,
-          [Query.equal("userId", result.documents[i].userId)] // use i here, not 0
+          [Query.equal("userId", result.documents[i].userId)]  
         );
 
         let userDetail = userDetails.documents[0];

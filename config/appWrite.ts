@@ -20,6 +20,7 @@ export const usersCollection="67e1867b002bc4603781";
 export const groupTaskAddPermission_collection="67e439130021eddf6b60";
 export const groupTask_collection="68090ec20019ea873ef0";
 export const taskComments_collection="68261bb4001a48aa12a5";
+export const events_collection="684710d100169ed5cb1d";
 
 //COLLECTION AND DB
 export const client = new Client()

@@ -29,19 +29,22 @@ const ListRenderer = (props: { filterBy: any }) => {
     // Get pinned items first if lists is empty
     if (lists.length === 0) {
       try {
+        setIsloading(true)
         const pinnedResult = await database.listDocuments(
           DB_id,
           task_collection,
           [
             Query.equal("pinned", true),
             Query.limit(100), // Higher limit for pinned items
-            Query.orderDesc("date"), // Sort pinned items by date descending
+            Query.orderDesc("date"),  
           ]
         );
         const pinnedData: any = pinnedResult?.documents;
         setLists(pinnedData);
       } catch (err) {
         console.log("Error fetching pinned items:", err);
+      } finally {
+        setIsloading(false);
       }
     }
 
@@ -132,8 +135,9 @@ const ListRenderer = (props: { filterBy: any }) => {
         Tasks List
       </Text>
       <View>
+         <Text className="text-white text-2xl">{isLoading}</Text>
         <FlatList
-          contentContainerStyle={{ paddingBottom: 230 }}
+          contentContainerStyle={{ paddingBottom: 330 }}
           scrollEnabled
           showsVerticalScrollIndicator={false}
           data={lists}
@@ -146,7 +150,7 @@ const ListRenderer = (props: { filterBy: any }) => {
           }}
           onEndReachedThreshold={0.7}
         />
-        {isLoading && <ActivityIndicator />}
+         {isLoading && <ActivityIndicator />}
       </View>
     </View>
   );

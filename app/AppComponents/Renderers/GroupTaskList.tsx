@@ -35,6 +35,7 @@ const GroupTaskList = (props:{filterBy:any}) => {
   const fetch = async () => {
     // Get pinned items first if lists is empty
     if (lists.length === 0) {
+      setIsloading(true)
       try {
         const pinnedResult = await database.listDocuments(
           DB_id,
@@ -77,6 +78,8 @@ const GroupTaskList = (props:{filterBy:any}) => {
         setLists(data);
       } catch (err) {
         console.log("Error fetching pinned items:", err);
+      } finally {
+        setIsloading(false);
       }
     }
     if (isLoadingRef.current) return;
