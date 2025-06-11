@@ -10,5 +10,6 @@ export interface Task {
   date: string; // ISO date string
   time: string; // ISO time string
   isCompleted: boolean;
-  pinned:boolean
+  pinned: boolean;
+  userId: string;
 }

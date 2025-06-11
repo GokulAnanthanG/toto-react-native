@@ -35,6 +35,7 @@ import { UserData } from "@/interface/UserInterface";
 import { TaskType } from "@/enum/TaskTypeEnum";
 import { router } from "expo-router";
 import GroupTaskList from "@/app/AppComponents/Renderers/GroupTaskList";
+import { Task } from "@/interface/listInterface";
 import { Picker } from "@react-native-picker/picker";
 const List = () => {
   const { isLoggedIn, refetch, loading, user } = useGlobalContext();
@@ -49,6 +50,7 @@ const List = () => {
   const [showTime, setShowTime] = useState(false);
   const [friends, setFriends] = useState<UserData[] | any>([]);
   const [selectedFilterOpt, setSelectedFilterOpt] = useState("all");
+  const [taskList, setTaskList] = useState<Task[]>([]);
   const getFriends = async () => {
     try {
       console.log("calling");
@@ -67,11 +69,9 @@ const List = () => {
       let modifiedData = [];
 
       for (let i = 0; i < result.total; i++) {
-        let userDetails = await database.listDocuments(
-          DB_id,
-          usersCollection,
-          [Query.equal("userId", result.documents[i].userId)]  
-        );
+        let userDetails = await database.listDocuments(DB_id, usersCollection, [
+          Query.equal("userId", result.documents[i].userId),
+        ]);
 
         let userDetail = userDetails.documents[0];
 
@@ -115,22 +115,59 @@ const List = () => {
     console.log("add");
 
     try {
-      const result = await database.createDocument(
-        DB_id,
-        task_collection,
-        ID.unique(),
-        {
+      if (
+        title.trim() === "" ||
+        description.trim() === "" ||
+        date === null ||
+        time === null ||
+        !user?.$id
+      ) {
+        Alert.alert("Error", "Please fill all the fields");
+        return;
+      } else {
+        const newTask = {
           title,
           description,
           date: date.toISOString(),
           time: time.toISOString(),
+          userId: user.$id,
+          isCompleted: false,
+          pinned: false
+        };
+
+        const result = await database.createDocument(
+          DB_id,
+          task_collection,
+          ID.unique(),
+          newTask
+        );
+
+        // Create the complete task object
+        const createdTask: Task = {
+          ...newTask,
+          $id: result.$id,
+          $collectionId: result.$collectionId,
+          $databaseId: result.$databaseId,
+          $createdAt: result.$createdAt,
+          $updatedAt: result.$updatedAt,
+          $permissions: result.$permissions
+        };
+
+        // Clear the form
+        refRBSheet?.current.close();
+        setDescription("");
+        setTitle("");
+        
+        // Show success message
+        Alert.alert("Success", "Task added successfully!");
+
+        // Add the new task to the list
+        if (listRendererRef.current) {
+          listRendererRef.current.addNewTask(createdTask);
         }
-      );
-      refRBSheet?.current.close();
-      setDescription("");
-      setTitle("");
+      }
     } catch (err) {
-      Alert.alert("oops something went wrong :(");
+      Alert.alert("Error", "Failed to add task. Please try again.");
       console.log("Failed to add task", err);
     }
   };
@@ -138,43 +175,41 @@ const List = () => {
     console.log("add", selectedItems);
 
     try {
-      const result = await database.createDocument(
-        DB_id,
-        groupTask_collection,
-        ID.unique(),
-        {
-          title,
-          description,
-          date: date.toISOString(),
-          time: time.toISOString(),
-          members: selectedItems,
-          owner: user?.$id ?? "",
-        }
-      );
-      refRBSheet2?.current.close();
-      setDescription("");
-      setTitle("");
-      Alert.alert("Group task added :)");
+      if (
+        title.trim() === "" ||
+        description.trim() === "" ||
+        selectedItems.length === 0 ||
+        date === null ||
+        time === null
+      ) {
+        Alert.alert("Please fill all the fields");
+        return;
+      } else {
+        const result = await database.createDocument(
+          DB_id,
+          groupTask_collection,
+          ID.unique(),
+          {
+            title,
+            description,
+            date: date.toISOString(),
+            time: time.toISOString(),
+            members: selectedItems,
+            owner: user?.$id ?? "",
+          }
+        );
+        refRBSheet2?.current.close();
+        setDescription("");
+        setTitle("");
+        Alert.alert("Group task added :)");
+      }
     } catch (err) {
       Alert.alert("oops something went wrong :(");
       console.log("Failed to add task", err);
     }
   };
 
-  const items = [
-    { name: "Item 1", id: 1 },
-    { name: "Item 2", id: 2 },
-    { name: "Item 1", id: 3 },
-    { name: "Item 2", id: 4 },
-    { name: "Item 1", id: 5 },
-    { name: "Item 2", id: 6 },
-    { name: "Item 1", id: 7 },
-    { name: "Item 2", id: 8 },
-    { name: "Item 1", id: 9 },
-    { name: "Item 2", id: 10 },
-    { name: "Item 1", id: 11 },
-    { name: "Item 2", id: 12 },
-  ];
+  
 
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
@@ -184,6 +219,8 @@ const List = () => {
     setSelectedItems(selected);
   };
   const [selectedType, setSelectedType] = useState(TaskType.task);
+  const listRendererRef = useRef<any>(null);
+
   return (
     <View className="flex-1 px-[18px] pt-[18px]">
       <View className="flex-row items-center justify-between gap-[8px]">
@@ -259,9 +296,13 @@ const List = () => {
       </View>
       {/* RENDERING LISTS */}
       {selectedType == TaskType.task ? (
-        <ListRenderer filterBy={selectedFilterOpt} />
+        <ListRenderer 
+          ref={listRendererRef}
+          searchTxt={searchTxt} 
+          filterBy={selectedFilterOpt} 
+        />
       ) : (
-        <GroupTaskList filterBy={selectedFilterOpt} />
+        <GroupTaskList searchTxt={searchTxt} filterBy={selectedFilterOpt} />
       )}
       <FloatingAction
         actions={actions}
