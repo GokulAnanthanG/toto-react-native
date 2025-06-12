@@ -195,21 +195,25 @@ const GroupTaskScreen = () => {
   const fetchComments = async () => {
     console.log("fetch command 2");
     console.log("isLoadingRef:", isLoadingRef.current, "hasMore:", hasMore);
-    
+
     if (isLoadingRef.current || !hasMore) {
       console.log("fetchComments early return");
       return;
     }
     isLoadingRef.current = true;
     try {
-      const result = await database.listDocuments(DB_id, taskComments_collection, [
-        Query.equal("taskId", String(groupId)),
-        Query.orderDesc("$createdAt"),
-        Query.limit(limit),
-        Query.offset(page * limit),
-      ]);
+      const result = await database.listDocuments(
+        DB_id,
+        taskComments_collection,
+        [
+          Query.equal("taskId", String(groupId)),
+          Query.orderDesc("$createdAt"),
+          Query.limit(limit),
+          Query.offset(page * limit),
+        ]
+      );
       console.log("result", result);
-      
+
       const data: any = result?.documents;
       if (data.length === 0) {
         if (page === 0) {
@@ -223,9 +227,11 @@ const GroupTaskScreen = () => {
       const commentsWithUserData = await Promise.all(
         data.map(async (comment: any) => {
           try {
-            const userResult = await database.listDocuments(DB_id, usersCollection, [
-              Query.equal("userId", comment.userId),
-            ]);
+            const userResult = await database.listDocuments(
+              DB_id,
+              usersCollection,
+              [Query.equal("userId", comment.userId)]
+            );
             return {
               ...comment,
               user: userResult.documents[0],
@@ -236,7 +242,7 @@ const GroupTaskScreen = () => {
           }
         })
       );
-      
+
       setLists((prev) => [...prev, ...commentsWithUserData]);
       setPage((prev) => prev + 1);
       setHasMore(data.length === limit);
@@ -272,7 +278,7 @@ const GroupTaskScreen = () => {
 
       // Clear the input
       setComment("");
-      
+
       // Reset states
       setLists([]);
       setPage(0);
@@ -280,22 +286,28 @@ const GroupTaskScreen = () => {
       isLoadingRef.current = false;
 
       // Fetch comments immediately with user data
-      const result = await database.listDocuments(DB_id, taskComments_collection, [
-        Query.equal("taskId", String(groupId)),
-        Query.orderDesc("$createdAt"),
-        Query.limit(limit),
-        Query.offset(0),
-      ]);
-      
+      const result = await database.listDocuments(
+        DB_id,
+        taskComments_collection,
+        [
+          Query.equal("taskId", String(groupId)),
+          Query.orderDesc("$createdAt"),
+          Query.limit(limit),
+          Query.offset(0),
+        ]
+      );
+
       const data: any = result?.documents;
-      
+
       // Fetch user data for the new comments
       const commentsWithUserData = await Promise.all(
         data.map(async (comment: any) => {
           try {
-            const userResult = await database.listDocuments(DB_id, usersCollection, [
-              Query.equal("userId", comment.userId),
-            ]);
+            const userResult = await database.listDocuments(
+              DB_id,
+              usersCollection,
+              [Query.equal("userId", comment.userId)]
+            );
             return {
               ...comment,
               user: userResult.documents[0],
@@ -310,7 +322,7 @@ const GroupTaskScreen = () => {
       setLists(commentsWithUserData);
       setPage(1);
       setHasMore(data.length === limit);
-      
+
       Alert.alert("Success", "Comment added successfully");
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -336,7 +348,7 @@ const GroupTaskScreen = () => {
             {formatDate(item.timeStamp)} {formatTime(item.timeStamp)}
           </Text>
         </View>
-        
+
         <Text className="text-white font-PoppinsRegular mt-2 text-[14px]">
           {item.comment}
         </Text>
@@ -389,7 +401,7 @@ const GroupTaskScreen = () => {
             <Text className="text-[14px] font-PoppinsRegular text-[#FFFFFF] mt-2">
               Owner |
             </Text>
-            <View className="flex flex-row justify-center items-center gap-1">
+            <View className="flex flex-row justify-center items-center gap-1 mt-1">
               <Image
                 className="w-[15px] h-[15px] rounded-full"
                 resizeMode="contain"
@@ -500,7 +512,7 @@ const GroupTaskScreen = () => {
               />
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={addComment}
               className="bg-[#0EA5E9] flex-1 h-[42px] flex-row gap-2 justify-center items-center rounded-[2px]"
             >
@@ -537,7 +549,7 @@ const GroupTaskScreen = () => {
                   }
                 }}
                 onEndReachedThreshold={0.7}
-                ListFooterComponent={() => 
+                ListFooterComponent={() =>
                   isLoadingRef.current && page > 0 ? (
                     <ActivityIndicator style={{ marginVertical: 20 }} />
                   ) : null

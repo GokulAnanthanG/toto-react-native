@@ -7,8 +7,10 @@ export interface GroupTaskT {
     $updatedAt: string;
     date: string;
     description: string;
+    isCompleted: boolean;
     members: string[];
     owner: string;
+    pinned: boolean;
     time: string;
     title: string;
-  }
+}
