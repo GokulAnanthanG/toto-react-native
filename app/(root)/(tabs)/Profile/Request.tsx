@@ -6,15 +6,13 @@ import {
 } from "@/config/appWrite";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { DBUserData } from "@/interface/UserInterface";
-
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Image,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -26,22 +24,18 @@ import { permissionRequest } from "@/interface/PermissionData";
 const back = require("@/assets/images/angleLeft.png");
 
 const Request = () => {
-  const { isLoggedIn, refetch, loading, user } = useGlobalContext();
-  const [userData, setUserData] = useState<DBUserData | any>();
-  const [searchTxt, setSearchTxt] = React.useState("");
-  const [isLoading, setIsloading] = useState<boolean>(false);
+  const { user } = useGlobalContext();
+  const [userData, setUserData] = useState<DBUserData[]>([]);
+  const [searchTxt, setSearchTxt] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      if (searchTxt) {
-        searchUsers(searchTxt);
-      }
-    }, 500); // Debounce to optimize API calls
+  const searchUsers = useCallback(async (searchText: string) => {
+    if (!searchText.trim()) {
+      setUserData([]);
+      return;
+    }
 
-    return () => clearTimeout(delayDebounce);
-  }, [searchTxt]);
-  const searchUsers = async (searchText: string) => {
-    setIsloading(true);
+    setIsLoading(true);
     try {
       const response = await database.listDocuments(DB_id, usersCollection, [
         Query.or([
@@ -49,164 +43,157 @@ const Request = () => {
           Query.contains("name", searchText),
         ]),
       ]);
-      setUserData(response.documents);
+      setUserData(response.documents as DBUserData[]);
     } catch (error) {
       console.error("Error fetching data:", error);
+      Alert.alert("Error", "Failed to search users");
     } finally {
-      setIsloading(false);
+      setIsLoading(false);
     }
-  };
+  }, []);
 
-  const addPermissionRequest = async (requesterId: string, userId: string) => {
-    const newRecord = await database.createDocument(
-      DB_id,
-      groupTaskAddPermission_collection,
-      ID.unique(),
-      {
-        requesterId,
-        userId,
-      }
-    );
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      searchUsers(searchTxt);
+    }, 500);
 
-    console.log("New record created:", newRecord);
-    alert("Requested for permission")
-    return newRecord;
-  };
+    return () => clearTimeout(delayDebounce);
+  }, [searchTxt, searchUsers]);
 
-  const updateStatusToPending = async (documentId: string) => {
-    console.log("Doc id",documentId);
-    
-    try {
-      const updatedDocument = await database.updateDocument(
-        DB_id, 
-        groupTaskAddPermission_collection,
-        documentId,
-        { status: "pending" }
-      );
-      console.log("Updated Document:", updatedDocument);
-      Alert.alert(
-        "Request Status",
-        "Requested for permission again"
-      );
-    } catch (error) {
-      console.error("Error updating status:", error);
-    }
-  };
-  
-  const fetchOrInsertRecord = async (requesterId: string, userId: string) => {
+  const handlePermissionRequest = useCallback(async (userId: string) => {
+    if (!user?.$id) return;
+
     try {
       const response = await database.listDocuments(
         DB_id,
         groupTaskAddPermission_collection,
-        [Query.equal("requesterId", requesterId), Query.equal("userId", userId)]
+        [Query.equal("requesterId", user.$id), Query.equal("userId", userId)]
       );
 
       if (response.documents.length > 0) {
-        const record: permissionRequest = response
-          .documents[0] as permissionRequest;
-        if (record.status == "pending")
-          Alert.alert(
-            "Request Status",
-            "Already requested waiting for user action"
-          );
-        else if (record.status == "rejected") {
-          updateStatusToPending(record.$id);
+        const record = response.documents[0] as permissionRequest;
+        
+        switch (record.status) {
+          case "pending":
+            Alert.alert("Request Status", "Already requested waiting for user action");
+            break;
+          case "rejected":
+            await database.updateDocument(
+              DB_id,
+              groupTaskAddPermission_collection,
+              record.$id,
+              { status: "pending" }
+            );
+            Alert.alert("Request Status", "Requested for permission again");
+            break;
+          case "approved":
+            Alert.alert("Request Status", "Already requested and approved by user");
+            break;
         }
-        return response.documents[0];
       } else {
-        addPermissionRequest(requesterId, userId);
+        await database.createDocument(
+          DB_id,
+          groupTaskAddPermission_collection,
+          ID.unique(),
+          { requesterId: user.$id, userId }
+        );
+        Alert.alert("Success", "Request sent successfully");
       }
     } catch (error) {
-      console.error("Error fetching or inserting record:", error);
-      alert("error fetching,inserting or update document");
+      console.error("Error handling permission request:", error);
+      Alert.alert("Error", "Failed to process request");
     }
-  };
+  }, [user?.$id]);
 
-  const showConfirmationAlert = (userId: string, requesterId: string) => {
-    Alert.alert(
-      "Confirm to submit",
-      "Request the user to join your group task?",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: () => fetchOrInsertRecord(requesterId, userId),
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-
-  return (
-    <View className="px-[23px]">
-      <View className="flex flex-row items-center  mt-[35px] gap-[10px]">
-        <TouchableOpacity
-          onPress={() => {
-            router.back();
-          }}
-          className="w-[25px] h-[25px] bg-[#FFFFFF] rounded-full flex justify-center items-center"
-        >
-          <Image
-            className="w-[10px] h-[10px]"
-            resizeMode="contain"
-            source={back}
-          />
-        </TouchableOpacity>
-        <Text className="font-PoppinsMedium text-[15px] text-[#FFFFFF]">
-          Request User
+  const renderUserItem = useCallback(({ item }: { item: DBUserData }) => (
+    <TouchableOpacity
+      onPress={() => {
+        Alert.alert(
+          "Confirm Request",
+          "Request the user to join your group task?",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Request", onPress: () => handlePermissionRequest(item.userId) }
+          ]
+        );
+      }}
+      className="flex-row items-center p-4 bg-[#FFFFFF] rounded-lg mt-3"
+    >
+      <Image
+        source={{ uri: item.avatar }}
+        className="w-[50px] h-[50px] rounded-full"
+      />
+      <View className="ml-4 flex-1">
+        <Text className="text-[#000000] font-PoppinsMedium text-[16px]">
+          {item.name}
+        </Text>
+        <Text className="text-[#000000] font-PoppinsRegular text-[14px] opacity-70">
+          {item.email}
         </Text>
       </View>
-      <Text className="mt-1 ml-8 text-gray-300">
-        Request the user to join your group task.
-      </Text>
-      <View className="px-[18px] pt-[15px]">
-        <View className="bg-[#102D53] w-full h-[42px] rounded-[10px] flex-row items-center justify-between p-4">
-          <TextInput
-            style={{ height: 40, width: "90%", color: "#FFFFFF" }}
-            onChangeText={setSearchTxt}
-            value={searchTxt}
-            placeholder="Search user by Name or User id"
-            placeholderTextColor={"#FFFFFF"}
+    </TouchableOpacity>
+  ), [handlePermissionRequest]);
+
+  return (
+    <View className="flex-1 px-6">
+      <View className="flex-row items-center mt-10 mb-2">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="w-[40px] h-[40px] bg-[#FFFFFF] rounded-full justify-center items-center"
+        >
+          <Image
+            source={back}
+            className="w-[15px] h-[15px]"
+            resizeMode="contain"
           />
-          <Ionicons name="search" size={17} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View className="ml-4">
+          <Text className="text-[#FFFFFF] font-PoppinsMedium text-[18px]">
+            Request User
+          </Text>
+          <Text className="text-[#FFFFFF] font-PoppinsRegular text-[14px] opacity-70">
+            Request the user to join your group task
+          </Text>
+        </View>
+      </View>
+
+      <View className="mt-6">
+        <View className="bg-[#102D53] rounded-lg flex-row items-center px-4">
+          <Ionicons name="search" size={20} color="#FFFFFF" />
+          <TextInput
+            className="flex-1 h-[50px] text-[#FFFFFF] ml-2 font-PoppinsRegular"
+            placeholder="Search user by Name or User ID"
+            placeholderTextColor="#FFFFFF80"
+            value={searchTxt}
+            onChangeText={setSearchTxt}
+          />
         </View>
 
-        <View className="mt-[10px]">
-          {isLoading && <ActivityIndicator />}
-          <FlatList
-            data={userData}
-            keyExtractor={(item) => item.$id}
-            pagingEnabled
-            renderItem={(
-              { item } // Destructure 'item' properly
-            ) => (
-              <TouchableOpacity
-                onPress={() => {
-                  showConfirmationAlert(item.userId, user?.$id ?? "");
-                }}
-                className="flex flex-row gap-[10] items-center"
-              >
-                <Image
-                  source={{ uri: item.avatar }}
-                  style={{ width: 50, height: 50, borderRadius: 25 }}
-                />
-                <View>
-                  <Text className="text-[#FFFFFF] font-PoppinsMedium">
-                    {item.name}
-                  </Text>
-                  <Text className="text-[#FFFFFF] font-PoppinsMedium">
-                    {item.email}
+        <View className="mt-6">
+          {isLoading ? (
+            <View className="flex-1 justify-center items-center py-8">
+              <ActivityIndicator size="large" color="#0EA5E9" />
+            </View>
+          ) : (
+            <FlatList
+              data={userData}
+              keyExtractor={(item) => item.$id}
+              renderItem={renderUserItem}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              ListEmptyComponent={() => (
+                <View className="flex-1 justify-center items-center py-8">
+                  <Text className="text-[#FFFFFF] font-PoppinsRegular text-[16px] opacity-70">
+                    {searchTxt ? "No users found" : "Search for users"}
                   </Text>
                 </View>
-              </TouchableOpacity>
-            )}
-          />
+              )}
+            />
+          )}
         </View>
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({});
 
 export default Request;

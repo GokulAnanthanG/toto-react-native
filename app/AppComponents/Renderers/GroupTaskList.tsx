@@ -90,6 +90,10 @@ const GroupTaskList = forwardRef<GroupTaskListRef, GroupTaskListProps>((props, r
           Query.equal("pinned", true),
           Query.limit(100),
           Query.orderDesc("date"),
+          Query.or([
+            Query.equal("owner", user.$id),
+            Query.contains("members", user.$id)
+          ])
         ]
       );
       
@@ -140,6 +144,10 @@ const GroupTaskList = forwardRef<GroupTaskListRef, GroupTaskListProps>((props, r
         Query.limit(limit),
         Query.orderDesc("date"),
         Query.equal("pinned", false),
+        Query.or([
+          Query.equal("owner", user.$id),
+          Query.contains("members", user.$id)
+        ])
       ];
 
       if (!isNewSearch) {
