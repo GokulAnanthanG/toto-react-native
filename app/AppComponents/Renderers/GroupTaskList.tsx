@@ -21,6 +21,7 @@ import { formatDate, formatTime } from "@/Common/DateTimeFormatter";
 import { useGlobalContext } from "@/hooks/global-provider";
 import { GroupTaskT } from "@/interface/GroupTaskT";
 import ImgRenderer from "./ImgRenderer";
+import { GroupTaskWithDetails } from "@/interface/GroupTaskWithDetailsT";
 const pin = require("@/assets/images/Pin.png");
 
 interface GroupTaskListProps {
@@ -28,23 +29,7 @@ interface GroupTaskListProps {
   searchTxt: string;
 }
 
-interface GroupTaskWithDetails {
-  $collectionId: string;
-  $createdAt: string;
-  $databaseId: string;
-  $id: string;
-  $permissions: string[];
-  $updatedAt: string;
-  date: string;
-  description: string;
-  isCompleted: boolean;
-  members: Models.Document[][];
-  owner: string;
-  ownerDetails: Models.DocumentList<Models.Document>;
-  pinned: boolean;
-  time: string;
-  title: string;
-}
+ 
 
 interface GroupTaskListRef {
   addNewTask: (task: GroupTaskWithDetails) => void;

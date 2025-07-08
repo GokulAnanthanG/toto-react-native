@@ -6,7 +6,7 @@ type props = {
 };
 
 const ImgRenderer = (props: props) => {
- 
+ console.log("images", props);
   return (
     <>
       {props.images.slice(0,props.limit).map((image, index) => (
